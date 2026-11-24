@@ -68,6 +68,7 @@ add_library(relinker_core STATIC
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/WidenBroadcastLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/Float16Lowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/Float16StoreLowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/GatherLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/MoveMaskLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/BlendLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/VariableShiftLowering.cpp
@@ -189,6 +190,10 @@ if(BUILD_TESTING)
     target_link_libraries(float16_store_lowering_tests PRIVATE relinker_core)
     add_test(NAME float16_store_lowering COMMAND float16_store_lowering_tests)
     set_tests_properties(float16_store_lowering PROPERTIES TIMEOUT 60)
+    add_test_executable(gather_lowering_tests ${CMAKE_CURRENT_SOURCE_DIR}/codegen/tests/GatherLoweringTests.cpp)
+    target_link_libraries(gather_lowering_tests PRIVATE relinker_core)
+    add_test(NAME gather_lowering COMMAND gather_lowering_tests)
+    set_tests_properties(gather_lowering PROPERTIES TIMEOUT 60)
     add_test_executable(move_mask_lowering_tests ${CMAKE_CURRENT_SOURCE_DIR}/codegen/tests/MoveMaskLoweringTests.cpp)
     target_link_libraries(move_mask_lowering_tests PRIVATE relinker_core)
     add_test(NAME move_mask_lowering COMMAND move_mask_lowering_tests)
@@ -373,6 +378,7 @@ if(WIN32)
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/WidenBroadcastLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/Float16Lowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/Float16StoreLowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/GatherLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/MoveMaskLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/BlendLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/VariableShiftLowering.cpp
@@ -703,6 +709,7 @@ if(BUILD_TESTING)
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/WidenBroadcastLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/Float16Lowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/Float16StoreLowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/GatherLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/MoveMaskLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/BlendLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/VariableShiftLowering.cpp
