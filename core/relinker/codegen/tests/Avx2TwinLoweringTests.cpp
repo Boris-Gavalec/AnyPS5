@@ -35,6 +35,12 @@ std::vector<Case> cases(std::uint8_t imm) {
         {"VPBROADCASTD", {0xC4, 0xE2, 0x79, 0x58, 0x00}, {0xC4, 0xE2, 0x79, 0x18, 0x00}},
         {"VPBROADCASTQ", {0xC4, 0xE2, 0x7D, 0x59, 0x00}, {0xC4, 0xE2, 0x7D, 0x19, 0x00}},
         {"VPBROADCASTQ", {0xC4, 0xE2, 0x79, 0x59, 0x00}, {0xC4, 0xE1, 0x7B, 0x12, 0x00}},
+        {"VPMASKMOVD", {0xC4, 0xE2, 0x75, 0x8C, 0x00}, {0xC4, 0xE2, 0x75, 0x2C, 0x00}},
+        {"VPMASKMOVD", {0xC4, 0xE2, 0x71, 0x8C, 0x00}, {0xC4, 0xE2, 0x71, 0x2C, 0x00}},
+        {"VPMASKMOVQ", {0xC4, 0xE2, 0xF5, 0x8C, 0x00}, {0xC4, 0xE2, 0x75, 0x2D, 0x00}},
+        {"VPMASKMOVQ", {0xC4, 0xE2, 0xF1, 0x8C, 0x00}, {0xC4, 0xE2, 0x71, 0x2D, 0x00}},
+        {"VPMASKMOVD", {0xC4, 0xE2, 0x75, 0x8E, 0x10}, {0xC4, 0xE2, 0x75, 0x2E, 0x10}},
+        {"VPMASKMOVQ", {0xC4, 0xE2, 0xF5, 0x8E, 0x10}, {0xC4, 0xE2, 0x75, 0x2F, 0x10}},
     };
 }
 
@@ -61,6 +67,9 @@ void decoding() {
              Bytes{0xC4, 0xE3, 0x74, 0x02, 0xC2, 0x01},
              Bytes{0xC5, 0xFD, 0xFE, 0xC1},
              Bytes{0xC4, 0xE2, 0x7D, 0x78, 0x00},
+             Bytes{0xC4, 0xE2, 0x75, 0x8C, 0xC1},
+             Bytes{0xC4, 0xE2, 0x75, 0x8E, 0xC1},
+             Bytes{0xC4, 0xE2, 0x75, 0x8D, 0x00},
              Bytes{0xC4, 0xE3},
              Bytes{0x90}})
         require(!Codegen::DecodeAvx2Twin(bytes.data(), bytes.size()), "An instruction without an AVX1 twin was rewritten");
@@ -71,7 +80,13 @@ void matching() {
     const auto rosetta = Codegen::MakeAmd64OnlyInstructionMatcher(Codegen::Amd64OnlyTarget::Rosetta);
     const auto avx = Codegen::MakeAmd64OnlyInstructionMatcher(Codegen::Amd64OnlyTarget::Avx);
     for (const auto& item : cases(1)) {
-        require(!intel->Match(item.Site.data(), item.Site.size()) && !rosetta->Match(item.Site.data(), item.Site.size()), std::string("Intel or Rosetta mode rewrote ") + item.Name);
+        require(!intel->Match(item.Site.data(), item.Site.size()), std::string("Intel mode rewrote ") + item.Name);
+        if (item.Site[3] == 0x8E) {
+            const auto workaround = rosetta->Match(item.Site.data(), item.Site.size());
+            require(workaround && workaround->InstructionName == item.Name && workaround->Lowering == Codegen::Amd64OnlyLowering::Trampoline, std::string("Rosetta mode no longer emulates the masked store ") + item.Name);
+        } else {
+            require(!rosetta->Match(item.Site.data(), item.Site.size()), std::string("Rosetta mode rewrote ") + item.Name);
+        }
         const auto match = avx->Match(item.Site.data(), item.Site.size());
         require(match && match->Lowering == Codegen::Amd64OnlyLowering::InPlace && match->ReplacementBytes == item.Replacement && match->InstructionName == item.Name, std::string("AVX mode did not rewrite ") + item.Name + " in place");
         Codegen::StubBodyBuilder body;
@@ -141,6 +156,35 @@ Vector expected(const std::string& name, const Bytes& site, const Registers& in,
     return out;
 }
 
+void maskedMoves() {
+    Registers input{};
+    for (unsigned i = 0; i < 8; ++i) {
+        input.Ymm0[i] = 0xDEAD0000u + i;
+        input.Ymm1[i] = (i % 2) != 0 ? 0x80000000u : 0x7FFFFFFFu;
+        input.Ymm2[i] = 0x22220000u + i;
+        input.Memory[i] = 0x33330000u + i;
+    }
+    const Bytes readBack{0xC5, 0xFE, 0x6F, 0x00};
+    for (const auto& item : cases(0)) {
+        if (std::string(item.Name).rfind("VPMASKMOV", 0) != 0) continue;
+        const bool store = item.Site[3] == 0x8E;
+        auto site = item.Site;
+        auto replacement = item.Replacement;
+        if (store) {
+            site.insert(site.end(), readBack.begin(), readBack.end());
+            replacement.insert(replacement.end(), readBack.begin(), readBack.end());
+        }
+        for (unsigned pattern = 0; pattern < 4; ++pattern) {
+            auto state = input;
+            for (unsigned i = 0; i < 8; ++i) state.Ymm1[i] = ((pattern + i) % 3) == 0 ? 0x80000000u : 0x40000000u;
+            const auto hardware = run(site, state);
+            const auto twin = run(replacement, state);
+            if (hardware.Ymm0 != twin.Ymm0 || hardware.Memory != twin.Memory)
+                throw std::runtime_error(std::string(item.Name) + (store ? " store" : " load") + " pattern " + std::to_string(pattern) + ": the twin does not move the same bits as the AVX2 instruction");
+        }
+    }
+}
+
 void execution() {
     Registers input{};
     for (unsigned i = 0; i < 8; ++i) {
@@ -151,6 +195,7 @@ void execution() {
     }
     for (const std::uint8_t imm : {0x00, 0x01, 0x02, 0x03, 0x12, 0x20, 0x31, 0x5B, 0x88, 0xA5, 0xFF}) {
         for (const auto& item : cases(imm)) {
+            if (std::string(item.Name).rfind("VPMASKMOV", 0) == 0) continue;
             const auto output = run(item.Replacement, input);
             const auto wanted = expected(item.Name, item.Site, input, imm);
             if (output.Ymm0 != wanted)
@@ -162,6 +207,7 @@ void execution() {
 #else
 
 void execution() { std::cout << "AVX2 twin execution checks require an x86-64 Linux, macOS or Windows build\n"; }
+void maskedMoves() {}
 
 #endif
 
@@ -172,6 +218,7 @@ int main() {
         decoding();
         matching();
         execution();
+        maskedMoves();
         std::cout << "AVX2 twin lowering checks passed\n";
     } catch (const std::exception& error) {
         std::cerr << error.what() << '\n';

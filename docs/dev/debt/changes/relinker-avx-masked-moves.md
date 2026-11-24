@@ -1,0 +1,5 @@
+# relinker
+
+## change [AVX2 twin lowering]
+
+- [AVX2 twin lowering](../../../core/relinker/codegen/src/x86/Avx2TwinLowering.cpp) under `--to-avx` rewrites, in place and at the same length, the AVX2 instructions whose AVX form moves the same bits: VINSERTI128, VEXTRACTI128 and VPERM2I128 become VINSERTF128, VEXTRACTF128 and VPERM2F128, VPBLENDD becomes VBLENDPS, VBROADCASTI128 becomes VBROADCASTF128, and the memory forms of VPBROADCASTD and VPBROADCASTQ become VBROADCASTSS and VBROADCASTSD (256-bit) or VMOVDDUP (128-bit), and VPMASKMOVD and VPMASKMOVQ become VMASKMOVPS and VMASKMOVPD. The integer and floating-point forms can differ in bypass latency between execution domains on some cores; the values are the same. Register-source broadcasts, VPBROADCASTB and VPBROADCASTW, VPERMQ, VPERMD, VPERMPS, VPERMPD, variable shifts, gathers and 256-bit integer arithmetic have no same-length AVX form and are not lowered. The execution test runs each replacement on an AVX host and compares it with the SDM result of the AVX2 instruction.
