@@ -1319,6 +1319,12 @@ void converterAvxShortSites() {
         require(shifted.Reports.size() == 1 && shifted.Reports[0].InstructionName == name && shifted.Trampolines.size() == 1, "The AVX target did not lower a variable shift");
         require(convert(rosetta, bytes).Reports.empty(), "The Rosetta target lowered a variable shift");
     }
+    const Bytes sadbw = {0xC4, 0xE3, 0x75, 0x42, 0xC2, 0x09, 0xC3};
+    const auto sums = convert(avx, sadbw);
+    require(sums.Reports.size() == 1 && sums.Reports[0].InstructionName == "256-bit integer" && sums.Trampolines.size() == 1, "The AVX target did not split the 256-bit VMPSADBW");
+    require(convert(rosetta, sadbw).Reports.empty(), "The Rosetta target split the 256-bit VMPSADBW");
+    const Bytes narrowSadbw = {0xC4, 0xE3, 0x71, 0x42, 0xC2, 0x09, 0xC3};
+    require(convert(avx, narrowSadbw).Reports.empty(), "The AVX target split the 128-bit VMPSADBW, which AVX has");
 }
 
 void converterRosetta() {
