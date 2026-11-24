@@ -43,20 +43,30 @@ std::optional<LaneSplitShape> _shape(const std::uint8_t map, const std::uint8_t 
     }
     if (map == Map0F3A && (opcode == 0x0E || opcode == 0x0F))
         return LaneSplitShape::BinaryImmediate;
+    if (map == Map0F3A && opcode == 0x42)
+        return LaneSplitShape::BinaryLaneImmediate;
     return std::nullopt;
 }
 
 bool _hasImmediate(const LaneSplitShape shape) {
-    return shape == LaneSplitShape::BinaryImmediate || shape == LaneSplitShape::ShiftImmediate || shape == LaneSplitShape::UnaryImmediate;
+    return shape == LaneSplitShape::BinaryImmediate || shape == LaneSplitShape::BinaryLaneImmediate || shape == LaneSplitShape::ShiftImmediate || shape == LaneSplitShape::UnaryImmediate;
 }
 
-void _half(StubBodyBuilder& body, const LaneSplitOperands& operands, const std::uint8_t destination, const std::uint8_t first, const std::uint8_t second) {
+std::uint8_t _laneImmediate(const std::uint8_t immediate, const bool high) {
+    return static_cast<std::uint8_t>(high ? (immediate >> 3) & 7 : immediate & 7);
+}
+
+void _half(StubBodyBuilder& body, const LaneSplitOperands& operands, const std::uint8_t destination, const std::uint8_t first, const std::uint8_t second, const bool high = false) {
     const Form form{operands.Map, operands.Prefix, operands.Wide, false, operands.Opcode};
     switch (operands.Shape) {
     case LaneSplitShape::Binary:
     case LaneSplitShape::BinaryImmediate:
     case LaneSplitShape::ShiftCount:
         Register(body, form, destination, first, second, operands.Immediate);
+        return;
+    case LaneSplitShape::BinaryLaneImmediate:
+        if (!operands.Immediate) throw CodegenException("a per-lane immediate instruction has no immediate");
+        Register(body, form, destination, first, second, _laneImmediate(*operands.Immediate, high));
         return;
     case LaneSplitShape::ShiftImmediate:
         Register(body, form, operands.Extension, destination, first, operands.Immediate);
@@ -106,6 +116,8 @@ std::optional<LaneSplitOperands> DecodeLaneSplit(const std::uint8_t* data, const
     if (_hasImmediate(*shape)) {
         if (end >= length) throw CodegenException("256-bit integer instruction is missing its immediate");
         operands.Immediate = data[end++];
+        if (*shape == LaneSplitShape::BinaryLaneImmediate && (*operands.Immediate & 0xC0) != 0)
+            throw CodegenException("VMPSADBW has a non-zero reserved immediate bit");
     }
     if (end != length) throw CodegenException("256-bit integer instruction has trailing bytes");
     return operands;
@@ -134,9 +146,10 @@ void EmitLaneSplit(StubBodyBuilder& body, const LaneSplitOperands& operands) {
     switch (operands.Shape) {
     case LaneSplitShape::Binary:
     case LaneSplitShape::BinaryImmediate:
+    case LaneSplitShape::BinaryLaneImmediate:
         ExtractUpper(body, high, operands.First);
         ExtractUpper(body, secondHigh, second);
-        _half(body, operands, high, high, secondHigh);
+        _half(body, operands, high, high, secondHigh, true);
         break;
     case LaneSplitShape::ShiftCount:
         ExtractUpper(body, high, operands.First);

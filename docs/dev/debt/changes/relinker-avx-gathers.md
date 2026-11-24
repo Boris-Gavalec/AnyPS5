@@ -1,0 +1,5 @@
+# relinker
+
+## add Functional
+
+- [Gather lowering](../../../core/relinker/codegen/src/x86/GatherLowering.cpp) under `--to-avx` does not leave the architectural state a fault inside a gather leaves: the SDM has the hardware write the elements it has already gathered and clear their mask bits before the page fault, so the instruction can be restarted, while this stub keeps the gathered elements in its frame and writes the destination and the zeroed mask only once every element is done, and a fault reports an address inside the stub. It walks the elements in rising order, skipping those whose mask bit is clear, so a masked-off element is never read, and it refuses a 32-bit address size, a register index, three registers that are not distinct and a missing SIB byte. Four general-purpose registers, one YMM register and RFLAGS, which the instructions leave unchanged, are saved in a 320-byte frame below the red zone. The execution test compares each of the eight gathers with the hardware instruction on an AVX2 host.

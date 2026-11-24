@@ -10,6 +10,7 @@ namespace Codegen {
 enum class LaneSplitShape : std::uint8_t {
     Binary,
     BinaryImmediate,
+    BinaryLaneImmediate,
     ShiftImmediate,
     ShiftCount,
     Unary,

@@ -20,6 +20,7 @@
 #include <codegen/x86/BlsLowering.hpp>
 #include <codegen/x86/ShiftLowering.hpp>
 #include <codegen/x86/BitfieldLowering.hpp>
+#include <codegen/x86/ParallelBitLowering.hpp>
 #include <codegen/x86/X64InstructionDecoder.hpp>
 #include <codegen/x86/X64OpcodeConstants.hpp>
 #include <codegen/x86/MulxLowering.hpp>
@@ -29,6 +30,12 @@
 #include <codegen/x86/LaneSplitLowering.hpp>
 #include <codegen/x86/PermuteLowering.hpp>
 #include <codegen/x86/WidenBroadcastLowering.hpp>
+#include <codegen/x86/Float16Lowering.hpp>
+#include <codegen/x86/Float16StoreLowering.hpp>
+#include <codegen/x86/GatherLowering.hpp>
+#include <codegen/x86/MoveMaskLowering.hpp>
+#include <codegen/x86/BlendLowering.hpp>
+#include <codegen/x86/VariableShiftLowering.hpp>
 #include <codegen/CodegenException.hpp>
 #include <algorithm>
 #include <cstring>
@@ -281,6 +288,8 @@ std::optional<Amd64OnlyMatch> Amd64OnlyInstructionMatcher::_matchRosetta(const D
     }
     if (const auto bitfield = DecodeBitfield(instr.Data, instr.Length))
         return _trampoline(BitfieldName(bitfield->Operation), instr.Length, _outOfLine(instr.Length, trailing, [&](StubBodyBuilder& body) { EmitBitfield(body, *bitfield); }));
+    if (const auto parallel = DecodeParallelBit(instr.Data, instr.Length))
+        return _trampoline(ParallelBitName(parallel->Operation), instr.Length, _outOfLine(instr.Length, trailing, [&](StubBodyBuilder& body) { EmitParallelBit(body, *parallel); }));
     if (const auto count = _target == Amd64OnlyTarget::Avx ? DecodeCount(instr.Data, instr.Length) : std::nullopt)
         return _trampoline(CountName(count->Operation), instr.Length, _outOfLine(instr.Length, trailing, [&](StubBodyBuilder& body) { EmitCount(body, *count); }), false, true);
     if (const auto movbe = _target == Amd64OnlyTarget::Avx ? DecodeMovbe(instr.Data, instr.Length) : std::nullopt)
@@ -328,6 +337,30 @@ const char* Amd64OnlyInstructionMatcher::_emitOutOfLine(StubBodyBuilder& body, c
     if (const auto widen = _target == Amd64OnlyTarget::Avx ? DecodeWidenBroadcast(instr.Data, instr.Length) : std::nullopt) {
         EmitWidenBroadcast(body, *widen);
         return widen->Name;
+    }
+    if (const auto half = _target == Amd64OnlyTarget::Avx ? DecodeFloat16(instr.Data, instr.Length) : std::nullopt) {
+        EmitFloat16(body, *half);
+        return "VCVTPH2PS";
+    }
+    if (const auto store = _target == Amd64OnlyTarget::Avx ? DecodeFloat16Store(instr.Data, instr.Length) : std::nullopt) {
+        EmitFloat16Store(body, *store);
+        return "VCVTPS2PH";
+    }
+    if (const auto gather = _target == Amd64OnlyTarget::Avx ? DecodeGather(instr.Data, instr.Length) : std::nullopt) {
+        EmitGather(body, *gather);
+        return gather->Name;
+    }
+    if (const auto mask = _target == Amd64OnlyTarget::Avx ? DecodeMoveMask(instr.Data, instr.Length) : std::nullopt) {
+        EmitMoveMask(body, *mask);
+        return "VPMOVMSKB";
+    }
+    if (const auto blend = _target == Amd64OnlyTarget::Avx ? DecodeBlend(instr.Data, instr.Length) : std::nullopt) {
+        EmitBlend(body, *blend);
+        return "VPBLENDVB";
+    }
+    if (const auto variable = _target == Amd64OnlyTarget::Avx ? DecodeVariableShift(instr.Data, instr.Length) : std::nullopt) {
+        EmitVariableShift(body, *variable);
+        return VariableShiftName(variable->Operation, variable->Wide);
     }
     if (instr.IsExtrq() || instr.IsInsertq()) {
         const auto operands = DecodeSse4a(instr.Data, instr.Length);
@@ -383,6 +416,10 @@ const char* Amd64OnlyInstructionMatcher::_emitOutOfLine(StubBodyBuilder& body, c
     if (const auto bitfield = _lowersBmi() ? DecodeBitfield(instr.Data, instr.Length) : std::nullopt) {
         EmitBitfield(body, *bitfield);
         return BitfieldName(bitfield->Operation);
+    }
+    if (const auto parallel = _lowersBmi() ? DecodeParallelBit(instr.Data, instr.Length) : std::nullopt) {
+        EmitParallelBit(body, *parallel);
+        return ParallelBitName(parallel->Operation);
     }
     if (const auto count = _target == Amd64OnlyTarget::Avx ? DecodeCount(instr.Data, instr.Length) : std::nullopt) {
         EmitCount(body, *count);
@@ -536,6 +573,24 @@ std::optional<Amd64OnlyMatch> Amd64OnlyInstructionMatcher::Match(
 
     if (const auto widen = _target == Amd64OnlyTarget::Avx ? DecodeWidenBroadcast(data, length) : std::nullopt)
         return _trampoline(widen->Name, length, _outOfLine(length, trailing, [&](StubBodyBuilder& body) { EmitWidenBroadcast(body, *widen); }), false, true);
+
+    if (const auto half = _target == Amd64OnlyTarget::Avx ? DecodeFloat16(data, length) : std::nullopt)
+        return _trampoline("VCVTPH2PS", length, _outOfLine(length, trailing, [&](StubBodyBuilder& body) { EmitFloat16(body, *half); }), false, true);
+
+    if (const auto store = _target == Amd64OnlyTarget::Avx ? DecodeFloat16Store(data, length) : std::nullopt)
+        return _trampoline("VCVTPS2PH", length, _outOfLine(length, trailing, [&](StubBodyBuilder& body) { EmitFloat16Store(body, *store); }), false, true);
+
+    if (const auto gather = _target == Amd64OnlyTarget::Avx ? DecodeGather(data, length) : std::nullopt)
+        return _trampoline(gather->Name, length, _outOfLine(length, trailing, [&](StubBodyBuilder& body) { EmitGather(body, *gather); }), false, true);
+
+    if (const auto mask = _target == Amd64OnlyTarget::Avx ? DecodeMoveMask(data, length) : std::nullopt)
+        return _trampoline("VPMOVMSKB", length, _outOfLine(length, trailing, [&](StubBodyBuilder& body) { EmitMoveMask(body, *mask); }), false, true);
+
+    if (const auto blend = _target == Amd64OnlyTarget::Avx ? DecodeBlend(data, length) : std::nullopt)
+        return _trampoline("VPBLENDVB", length, _outOfLine(length, trailing, [&](StubBodyBuilder& body) { EmitBlend(body, *blend); }), false, true);
+
+    if (const auto variable = _target == Amd64OnlyTarget::Avx ? DecodeVariableShift(data, length) : std::nullopt)
+        return _trampoline(VariableShiftName(variable->Operation, variable->Wide), length, _outOfLine(length, trailing, [&](StubBodyBuilder& body) { EmitVariableShift(body, *variable); }), false, true);
 
     return _matchRosetta(instr, trailing, following);
 }

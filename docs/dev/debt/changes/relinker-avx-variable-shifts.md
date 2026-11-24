@@ -1,0 +1,5 @@
+# relinker
+
+## add Functional
+
+- [Variable shift lowering](../../../core/relinker/codegen/src/x86/VariableShiftLowering.cpp) under `--to-avx` runs VPSLLVD, VPSLLVQ, VPSRLVD, VPSRLVQ and VPSRAVD one element at a time through general-purpose registers, so a 256-bit dword form becomes about sixty instructions where the hardware takes one; VPSRAVQ, which needs AVX-512, throws instead, and a stack-relative memory source inside the stub's frame is not detected, as for the other 256-bit lowerings. The source and the counts are stored in a 288-byte frame below the red zone, each element is shifted by CL and then zeroed through CMOVAE when its count reaches the element width, or its count clamped to that width less one through CMOVA for VPSRAVD, following their SDM entries. The result is loaded back with a 128- or 256-bit move, so a 128-bit form zeroes the upper lane, and RFLAGS, which these instructions leave unchanged, is saved in the same frame. The test compares the stub with the hardware instruction on an AVX2 host.

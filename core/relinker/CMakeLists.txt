@@ -59,12 +59,19 @@ add_library(relinker_core STATIC
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/BlsLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/ShiftLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/BitfieldLowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/ParallelBitLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/CountLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/MovbeLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/Avx2TwinLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/LaneSplitLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/PermuteLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/WidenBroadcastLowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/Float16Lowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/Float16StoreLowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/GatherLowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/MoveMaskLowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/BlendLowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/VariableShiftLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/relinker/src/parsing/ElfReader.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/relinker/src/parsing/RelrRelocations.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/relinker/src/analysis/SyscallScanner.cpp
@@ -141,6 +148,10 @@ if(BUILD_TESTING)
     target_link_libraries(bitfield_lowering_tests PRIVATE relinker_core)
     add_test(NAME bitfield_lowering COMMAND bitfield_lowering_tests)
     set_tests_properties(bitfield_lowering PROPERTIES TIMEOUT 60)
+    add_test_executable(parallel_bit_lowering_tests ${CMAKE_CURRENT_SOURCE_DIR}/codegen/tests/ParallelBitLoweringTests.cpp)
+    target_link_libraries(parallel_bit_lowering_tests PRIVATE relinker_core)
+    add_test(NAME parallel_bit_lowering COMMAND parallel_bit_lowering_tests)
+    set_tests_properties(parallel_bit_lowering PROPERTIES TIMEOUT 60)
 
     add_test_executable(count_lowering_tests ${CMAKE_CURRENT_SOURCE_DIR}/codegen/tests/CountLoweringTests.cpp)
     target_link_libraries(count_lowering_tests PRIVATE relinker_core)
@@ -171,6 +182,30 @@ if(BUILD_TESTING)
     target_link_libraries(widen_broadcast_lowering_tests PRIVATE relinker_core)
     add_test(NAME widen_broadcast_lowering COMMAND widen_broadcast_lowering_tests)
     set_tests_properties(widen_broadcast_lowering PROPERTIES TIMEOUT 120)
+    add_test_executable(float16_lowering_tests ${CMAKE_CURRENT_SOURCE_DIR}/codegen/tests/Float16LoweringTests.cpp)
+    target_link_libraries(float16_lowering_tests PRIVATE relinker_core)
+    add_test(NAME float16_lowering COMMAND float16_lowering_tests)
+    set_tests_properties(float16_lowering PROPERTIES TIMEOUT 60)
+    add_test_executable(float16_store_lowering_tests ${CMAKE_CURRENT_SOURCE_DIR}/codegen/tests/Float16StoreLoweringTests.cpp)
+    target_link_libraries(float16_store_lowering_tests PRIVATE relinker_core)
+    add_test(NAME float16_store_lowering COMMAND float16_store_lowering_tests)
+    set_tests_properties(float16_store_lowering PROPERTIES TIMEOUT 60)
+    add_test_executable(gather_lowering_tests ${CMAKE_CURRENT_SOURCE_DIR}/codegen/tests/GatherLoweringTests.cpp)
+    target_link_libraries(gather_lowering_tests PRIVATE relinker_core)
+    add_test(NAME gather_lowering COMMAND gather_lowering_tests)
+    set_tests_properties(gather_lowering PROPERTIES TIMEOUT 60)
+    add_test_executable(move_mask_lowering_tests ${CMAKE_CURRENT_SOURCE_DIR}/codegen/tests/MoveMaskLoweringTests.cpp)
+    target_link_libraries(move_mask_lowering_tests PRIVATE relinker_core)
+    add_test(NAME move_mask_lowering COMMAND move_mask_lowering_tests)
+    set_tests_properties(move_mask_lowering PROPERTIES TIMEOUT 60)
+    add_test_executable(blend_lowering_tests ${CMAKE_CURRENT_SOURCE_DIR}/codegen/tests/BlendLoweringTests.cpp)
+    target_link_libraries(blend_lowering_tests PRIVATE relinker_core)
+    add_test(NAME blend_lowering COMMAND blend_lowering_tests)
+    set_tests_properties(blend_lowering PROPERTIES TIMEOUT 60)
+    add_test_executable(variable_shift_lowering_tests ${CMAKE_CURRENT_SOURCE_DIR}/codegen/tests/VariableShiftLoweringTests.cpp)
+    target_link_libraries(variable_shift_lowering_tests PRIVATE relinker_core)
+    add_test(NAME variable_shift_lowering COMMAND variable_shift_lowering_tests)
+    set_tests_properties(variable_shift_lowering PROPERTIES TIMEOUT 60)
 
     add_test_executable(masked_store_lowering_tests ${CMAKE_CURRENT_SOURCE_DIR}/codegen/tests/MaskedStoreLoweringTests.cpp)
     target_link_libraries(masked_store_lowering_tests PRIVATE relinker_core)
@@ -334,12 +369,19 @@ if(WIN32)
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/BlsLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/ShiftLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/BitfieldLowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/ParallelBitLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/CountLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/MovbeLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/Avx2TwinLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/LaneSplitLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/PermuteLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/WidenBroadcastLowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/Float16Lowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/Float16StoreLowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/GatherLowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/MoveMaskLowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/BlendLowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/VariableShiftLowering.cpp
     )
     target_include_directories(amd64_only_windows_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/elfpatcher/include ${CMAKE_CURRENT_SOURCE_DIR}/domain/include ${CMAKE_CURRENT_SOURCE_DIR}/io/include ${CMAKE_CURRENT_SOURCE_DIR}/codegen/include ${CMAKE_CURRENT_SOURCE_DIR}/../libs/prx/libc/src/specifics/windows)
     if(BUILD_TESTING)
@@ -658,12 +700,19 @@ if(BUILD_TESTING)
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/BlsLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/ShiftLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/BitfieldLowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/ParallelBitLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/CountLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/MovbeLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/Avx2TwinLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/LaneSplitLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/PermuteLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/WidenBroadcastLowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/Float16Lowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/Float16StoreLowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/GatherLowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/MoveMaskLowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/BlendLowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/VariableShiftLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/elfpatcher/src/linux/LinuxElfPatcher.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/elfpatcher/src/general/SegmentFilter.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/elfpatcher/src/general/EntryStubBuilder.cpp
@@ -1154,6 +1203,9 @@ if(BUILD_TESTING)
         add_test(NAME mulx_conversion COMMAND ${Python3_EXECUTABLE}
             ${CMAKE_CURRENT_SOURCE_DIR}/relinker/tests/test_mulx_conversion.py $<TARGET_FILE:relinker>)
         set_tests_properties(mulx_conversion PROPERTIES TIMEOUT 20)
+        add_test(NAME parallel_bit_conversion COMMAND ${Python3_EXECUTABLE}
+            ${CMAKE_CURRENT_SOURCE_DIR}/relinker/tests/test_parallel_bit_conversion.py $<TARGET_FILE:relinker>)
+        set_tests_properties(parallel_bit_conversion PROPERTIES TIMEOUT 30)
         add_test(NAME to_rosetta COMMAND ${Python3_EXECUTABLE}
             ${CMAKE_CURRENT_SOURCE_DIR}/relinker/tests/test_to_rosetta.py $<TARGET_FILE:relinker>)
         add_test(NAME syscall_number COMMAND ${Python3_EXECUTABLE}

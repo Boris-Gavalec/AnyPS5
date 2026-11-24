@@ -1,0 +1,9 @@
+# relinker
+
+## add Functional
+
+- [256-bit VPMOVMSKB lowering](../../../core/relinker/codegen/src/x86/MoveMaskLowering.cpp) under `--to-avx` is not executed with RSP as its destination: the stub stores the mask over the saved stack pointer as the instruction does, which the vector execution test cannot run, so only its encoding is covered there. The lowering reads the two halves with `VEXTRACTF128` and the 128-bit `VPMOVMSKB`, joins them with `SHL` by 16 and `OR`, and writes the destination as a 32-bit move, so bits 63:32 are zeroed for both VEX.W values, following the VPMOVMSKB entry of [Intel SDM volume 2B](https://cdrdv2-public.intel.com/812384/253667-sdm-vol-2b.pdf). Two scratch registers, one YMM register and RFLAGS, which the instruction leaves unchanged, are saved in a 192-byte frame below the red zone. A memory source, a non-zero VEX.vvvv and trailing bytes throw. The execution test compares the stub with the hardware instruction on an AVX2 host for every other destination, five sources and both VEX forms.
+
+## change [256-bit integer lowering]
+
+- [256-bit integer lowering](../../../core/relinker/codegen/src/x86/LaneSplitLowering.cpp) under `--to-avx` runs each covered instruction about ten times slower than on an AVX2 host. VMPSADBW refuses an immediate whose two top bits are not zero, which the SDM reserves without saying what a CPU does with them. It runs the lane-local integer instructions listed in `_shape` as two VEX.128 halves: VEXTRACTF128 into scratch YMM registers saved in a 224-byte frame below the red zone, the 128-bit form per half, then VINSERTF128; RFLAGS is not written. The execution test compares each split with the 128-bit instruction on each half, with aliasing, the other YMM registers and the red zone checked; memory sources are decoded but not executed.

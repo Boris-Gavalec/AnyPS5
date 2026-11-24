@@ -1299,6 +1299,36 @@ void converterAvxShortSites() {
     const Bytes rdpid = {0xF3, 0x0F, 0xC7, 0xF9, 0x48, 0x83, 0xC1, 0x01, 0xC3};
     const auto processor = convert(avx, rdpid);
     require(processor.Reports.size() == 1 && processor.Reports[0].InstructionName == "RDPID", "The AVX target did not lower RDPID");
+    const Bytes moveMask = {0xC5, 0xFD, 0xD7, 0xC1, 0xC3};
+    const auto masked = convert(avx, moveMask);
+    require(masked.Reports.size() == 1 && masked.Reports[0].InstructionName == "VPMOVMSKB" && masked.Trampolines.size() == 1 && masked.Trampolines[0].Length == 5, "The AVX target did not lower the 256-bit VPMOVMSKB with the return after it");
+    require(convert(rosetta, moveMask).Reports.empty(), "The Rosetta target lowered the 256-bit VPMOVMSKB");
+    const Bytes narrowMask = {0xC5, 0xF9, 0xD7, 0xC1, 0xC3};
+    require(convert(avx, narrowMask).Reports.empty(), "The AVX target lowered the 128-bit VPMOVMSKB, which AVX has");
+    const Bytes blend = {0xC4, 0xE3, 0x7D, 0x4C, 0xC1, 0x20, 0xC3};
+    const auto blended = convert(avx, blend);
+    require(blended.Reports.size() == 1 && blended.Reports[0].InstructionName == "VPBLENDVB" && blended.Trampolines.size() == 1, "The AVX target did not lower the 256-bit VPBLENDVB");
+    require(convert(rosetta, blend).Reports.empty(), "The Rosetta target lowered the 256-bit VPBLENDVB");
+    const Bytes narrowBlend = {0xC4, 0xE3, 0x79, 0x4C, 0xC1, 0x20, 0xC3};
+    require(convert(avx, narrowBlend).Reports.empty(), "The AVX target lowered the 128-bit VPBLENDVB, which AVX has");
+    for (const auto& [bytes, name] : std::array<std::pair<Bytes, const char*>, 5>{{
+            {{0xC4, 0xE2, 0x7D, 0x47, 0xC1, 0xC3}, "VPSLLVD"}, {{0xC4, 0xE2, 0xFD, 0x47, 0xC1, 0xC3}, "VPSLLVQ"},
+            {{0xC4, 0xE2, 0x7D, 0x45, 0xC1, 0xC3}, "VPSRLVD"}, {{0xC4, 0xE2, 0xFD, 0x45, 0xC1, 0xC3}, "VPSRLVQ"},
+            {{0xC4, 0xE2, 0x79, 0x46, 0xC1, 0xC3}, "VPSRAVD"}}}) {
+        const auto shifted = convert(avx, bytes);
+        require(shifted.Reports.size() == 1 && shifted.Reports[0].InstructionName == name && shifted.Trampolines.size() == 1, "The AVX target did not lower a variable shift");
+        require(convert(rosetta, bytes).Reports.empty(), "The Rosetta target lowered a variable shift");
+    }
+    const Bytes sadbw = {0xC4, 0xE3, 0x75, 0x42, 0xC2, 0x09, 0xC3};
+    const auto sums = convert(avx, sadbw);
+    require(sums.Reports.size() == 1 && sums.Reports[0].InstructionName == "256-bit integer" && sums.Trampolines.size() == 1, "The AVX target did not split the 256-bit VMPSADBW");
+    require(convert(rosetta, sadbw).Reports.empty(), "The Rosetta target split the 256-bit VMPSADBW");
+    const Bytes narrowSadbw = {0xC4, 0xE3, 0x71, 0x42, 0xC2, 0x09, 0xC3};
+    require(convert(avx, narrowSadbw).Reports.empty(), "The AVX target split the 128-bit VMPSADBW, which AVX has");
+    const Bytes gather = {0xC4, 0xE2, 0x6D, 0x90, 0x04, 0x88, 0xC3};
+    const auto gathered = convert(avx, gather);
+    require(gathered.Reports.size() == 1 && gathered.Reports[0].InstructionName == "VPGATHERDD" && gathered.Trampolines.size() == 1, "The AVX target did not lower VPGATHERDD");
+    require(convert(rosetta, gather).Reports.empty(), "The Rosetta target lowered VPGATHERDD");
 }
 
 void converterRosetta() {

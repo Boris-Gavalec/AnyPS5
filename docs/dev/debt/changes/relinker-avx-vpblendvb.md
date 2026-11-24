@@ -1,0 +1,5 @@
+# relinker
+
+## add Functional
+
+- [256-bit VPBLENDVB lowering](../../../core/relinker/codegen/src/x86/BlendLowering.cpp) under `--to-avx` refuses a register selector whose low four bits are not zero, because whether the CPU ignores them is not settled by the VPBLENDVB entry of [Intel SDM volume 2A](https://cdrdv2-public.intel.com/812383/253666-sdm-vol-2a.pdf), and a `VEX.W` of one, which that entry reserves, throws as well. A stack-relative memory source that falls inside the stub's frame is not detected, as for the other 256-bit lowerings. The lowering runs the instruction as two VEX.128 halves: `VEXTRACTF128` moves the upper lane of each of the three sources into scratch YMM registers saved in a 256-byte frame below the red zone, the 128-bit form blends each half and `VINSERTF128` joins them, so a site becomes nine instructions and nothing in the stub writes RFLAGS. The execution test compares the stub with the hardware instruction on an AVX2 host over ten operand-overlap cases, with register and memory sources.
