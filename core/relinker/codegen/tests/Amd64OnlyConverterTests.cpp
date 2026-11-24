@@ -1311,6 +1311,14 @@ void converterAvxShortSites() {
     require(convert(rosetta, blend).Reports.empty(), "The Rosetta target lowered the 256-bit VPBLENDVB");
     const Bytes narrowBlend = {0xC4, 0xE3, 0x79, 0x4C, 0xC1, 0x20, 0xC3};
     require(convert(avx, narrowBlend).Reports.empty(), "The AVX target lowered the 128-bit VPBLENDVB, which AVX has");
+    for (const auto& [bytes, name] : std::array<std::pair<Bytes, const char*>, 5>{{
+            {{0xC4, 0xE2, 0x7D, 0x47, 0xC1, 0xC3}, "VPSLLVD"}, {{0xC4, 0xE2, 0xFD, 0x47, 0xC1, 0xC3}, "VPSLLVQ"},
+            {{0xC4, 0xE2, 0x7D, 0x45, 0xC1, 0xC3}, "VPSRLVD"}, {{0xC4, 0xE2, 0xFD, 0x45, 0xC1, 0xC3}, "VPSRLVQ"},
+            {{0xC4, 0xE2, 0x79, 0x46, 0xC1, 0xC3}, "VPSRAVD"}}}) {
+        const auto shifted = convert(avx, bytes);
+        require(shifted.Reports.size() == 1 && shifted.Reports[0].InstructionName == name && shifted.Trampolines.size() == 1, "The AVX target did not lower a variable shift");
+        require(convert(rosetta, bytes).Reports.empty(), "The Rosetta target lowered a variable shift");
+    }
 }
 
 void converterRosetta() {
