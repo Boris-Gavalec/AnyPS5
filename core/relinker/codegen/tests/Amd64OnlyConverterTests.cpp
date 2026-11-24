@@ -1299,6 +1299,12 @@ void converterAvxShortSites() {
     const Bytes rdpid = {0xF3, 0x0F, 0xC7, 0xF9, 0x48, 0x83, 0xC1, 0x01, 0xC3};
     const auto processor = convert(avx, rdpid);
     require(processor.Reports.size() == 1 && processor.Reports[0].InstructionName == "RDPID", "The AVX target did not lower RDPID");
+    const Bytes moveMask = {0xC5, 0xFD, 0xD7, 0xC1, 0xC3};
+    const auto masked = convert(avx, moveMask);
+    require(masked.Reports.size() == 1 && masked.Reports[0].InstructionName == "VPMOVMSKB" && masked.Trampolines.size() == 1 && masked.Trampolines[0].Length == 5, "The AVX target did not lower the 256-bit VPMOVMSKB with the return after it");
+    require(convert(rosetta, moveMask).Reports.empty(), "The Rosetta target lowered the 256-bit VPMOVMSKB");
+    const Bytes narrowMask = {0xC5, 0xF9, 0xD7, 0xC1, 0xC3};
+    require(convert(avx, narrowMask).Reports.empty(), "The AVX target lowered the 128-bit VPMOVMSKB, which AVX has");
 }
 
 void converterRosetta() {
