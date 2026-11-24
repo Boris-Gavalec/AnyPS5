@@ -30,6 +30,7 @@
 #include <codegen/x86/LaneSplitLowering.hpp>
 #include <codegen/x86/PermuteLowering.hpp>
 #include <codegen/x86/WidenBroadcastLowering.hpp>
+#include <codegen/x86/Float16Lowering.hpp>
 #include <codegen/x86/MoveMaskLowering.hpp>
 #include <codegen/x86/BlendLowering.hpp>
 #include <codegen/x86/VariableShiftLowering.hpp>
@@ -335,6 +336,10 @@ const char* Amd64OnlyInstructionMatcher::_emitOutOfLine(StubBodyBuilder& body, c
         EmitWidenBroadcast(body, *widen);
         return widen->Name;
     }
+    if (const auto half = _target == Amd64OnlyTarget::Avx ? DecodeFloat16(instr.Data, instr.Length) : std::nullopt) {
+        EmitFloat16(body, *half);
+        return "VCVTPH2PS";
+    }
     if (const auto mask = _target == Amd64OnlyTarget::Avx ? DecodeMoveMask(instr.Data, instr.Length) : std::nullopt) {
         EmitMoveMask(body, *mask);
         return "VPMOVMSKB";
@@ -558,6 +563,9 @@ std::optional<Amd64OnlyMatch> Amd64OnlyInstructionMatcher::Match(
 
     if (const auto widen = _target == Amd64OnlyTarget::Avx ? DecodeWidenBroadcast(data, length) : std::nullopt)
         return _trampoline(widen->Name, length, _outOfLine(length, trailing, [&](StubBodyBuilder& body) { EmitWidenBroadcast(body, *widen); }), false, true);
+
+    if (const auto half = _target == Amd64OnlyTarget::Avx ? DecodeFloat16(data, length) : std::nullopt)
+        return _trampoline("VCVTPH2PS", length, _outOfLine(length, trailing, [&](StubBodyBuilder& body) { EmitFloat16(body, *half); }), false, true);
 
     if (const auto mask = _target == Amd64OnlyTarget::Avx ? DecodeMoveMask(data, length) : std::nullopt)
         return _trampoline("VPMOVMSKB", length, _outOfLine(length, trailing, [&](StubBodyBuilder& body) { EmitMoveMask(body, *mask); }), false, true);

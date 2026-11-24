@@ -66,6 +66,7 @@ add_library(relinker_core STATIC
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/LaneSplitLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/PermuteLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/WidenBroadcastLowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/Float16Lowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/MoveMaskLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/BlendLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/VariableShiftLowering.cpp
@@ -179,6 +180,10 @@ if(BUILD_TESTING)
     target_link_libraries(widen_broadcast_lowering_tests PRIVATE relinker_core)
     add_test(NAME widen_broadcast_lowering COMMAND widen_broadcast_lowering_tests)
     set_tests_properties(widen_broadcast_lowering PROPERTIES TIMEOUT 120)
+    add_test_executable(float16_lowering_tests ${CMAKE_CURRENT_SOURCE_DIR}/codegen/tests/Float16LoweringTests.cpp)
+    target_link_libraries(float16_lowering_tests PRIVATE relinker_core)
+    add_test(NAME float16_lowering COMMAND float16_lowering_tests)
+    set_tests_properties(float16_lowering PROPERTIES TIMEOUT 60)
     add_test_executable(move_mask_lowering_tests ${CMAKE_CURRENT_SOURCE_DIR}/codegen/tests/MoveMaskLoweringTests.cpp)
     target_link_libraries(move_mask_lowering_tests PRIVATE relinker_core)
     add_test(NAME move_mask_lowering COMMAND move_mask_lowering_tests)
@@ -361,6 +366,7 @@ if(WIN32)
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/LaneSplitLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/PermuteLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/WidenBroadcastLowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/Float16Lowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/MoveMaskLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/BlendLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/VariableShiftLowering.cpp
@@ -689,6 +695,7 @@ if(BUILD_TESTING)
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/LaneSplitLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/PermuteLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/WidenBroadcastLowering.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/Float16Lowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/MoveMaskLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/BlendLowering.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/codegen/src/x86/VariableShiftLowering.cpp
