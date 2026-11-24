@@ -31,6 +31,7 @@
 #include <codegen/x86/PermuteLowering.hpp>
 #include <codegen/x86/WidenBroadcastLowering.hpp>
 #include <codegen/x86/MoveMaskLowering.hpp>
+#include <codegen/x86/BlendLowering.hpp>
 #include <codegen/CodegenException.hpp>
 #include <algorithm>
 #include <cstring>
@@ -337,6 +338,10 @@ const char* Amd64OnlyInstructionMatcher::_emitOutOfLine(StubBodyBuilder& body, c
         EmitMoveMask(body, *mask);
         return "VPMOVMSKB";
     }
+    if (const auto blend = _target == Amd64OnlyTarget::Avx ? DecodeBlend(instr.Data, instr.Length) : std::nullopt) {
+        EmitBlend(body, *blend);
+        return "VPBLENDVB";
+    }
     if (instr.IsExtrq() || instr.IsInsertq()) {
         const auto operands = DecodeSse4a(instr.Data, instr.Length);
         _lowering.EmitOutOfLine(body, operands);
@@ -551,6 +556,9 @@ std::optional<Amd64OnlyMatch> Amd64OnlyInstructionMatcher::Match(
 
     if (const auto mask = _target == Amd64OnlyTarget::Avx ? DecodeMoveMask(data, length) : std::nullopt)
         return _trampoline("VPMOVMSKB", length, _outOfLine(length, trailing, [&](StubBodyBuilder& body) { EmitMoveMask(body, *mask); }), false, true);
+
+    if (const auto blend = _target == Amd64OnlyTarget::Avx ? DecodeBlend(data, length) : std::nullopt)
+        return _trampoline("VPBLENDVB", length, _outOfLine(length, trailing, [&](StubBodyBuilder& body) { EmitBlend(body, *blend); }), false, true);
 
     return _matchRosetta(instr, trailing, following);
 }

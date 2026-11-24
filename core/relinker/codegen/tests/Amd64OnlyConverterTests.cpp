@@ -1305,6 +1305,12 @@ void converterAvxShortSites() {
     require(convert(rosetta, moveMask).Reports.empty(), "The Rosetta target lowered the 256-bit VPMOVMSKB");
     const Bytes narrowMask = {0xC5, 0xF9, 0xD7, 0xC1, 0xC3};
     require(convert(avx, narrowMask).Reports.empty(), "The AVX target lowered the 128-bit VPMOVMSKB, which AVX has");
+    const Bytes blend = {0xC4, 0xE3, 0x7D, 0x4C, 0xC1, 0x20, 0xC3};
+    const auto blended = convert(avx, blend);
+    require(blended.Reports.size() == 1 && blended.Reports[0].InstructionName == "VPBLENDVB" && blended.Trampolines.size() == 1, "The AVX target did not lower the 256-bit VPBLENDVB");
+    require(convert(rosetta, blend).Reports.empty(), "The Rosetta target lowered the 256-bit VPBLENDVB");
+    const Bytes narrowBlend = {0xC4, 0xE3, 0x79, 0x4C, 0xC1, 0x20, 0xC3};
+    require(convert(avx, narrowBlend).Reports.empty(), "The AVX target lowered the 128-bit VPBLENDVB, which AVX has");
 }
 
 void converterRosetta() {
